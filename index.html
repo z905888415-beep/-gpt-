@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GPT-Image-2 图片生成器</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      color: #e0e0e0;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    /* 头部样式 */
+    .header {
+      text-align: center;
+      padding: 40px 0;
+      margin-bottom: 30px;
+    }
+
+    .header h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 10px;
+    }
+
+    .header p {
+      color: #888;
+      font-size: 1.1rem;
+    }
+
+    /* 主布局 */
+    .main-layout {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 30px;
+      align-items: start;
+    }
+
+    @media (max-width: 1024px) {
+      .main-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* 卡片样式 */
+    .card {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 16px;
+      padding: 25px;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      margin-bottom: 20px;
+    }
+
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 20px;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* 表单样式 */
+    .form-group {
+      margin-bottom: 18px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.9rem;
+      color: #ccc;
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 10px;
+      background: rgba(0, 0, 0, 0.3);
+      color: #fff;
+      font-size: 0.95rem;
+      transition: all 0.3s ease;
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus,
+    .form-group select:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+    }
+
+    .form-group input::placeholder,
+    .form-group textarea::placeholder {
+      color: #666;
+    }
+
+    .form-group textarea {
+      resize: vertical;
+      min-height: 120px;
+      font-family: inherit;
+    }
+
+    /* 按钮样式 */
+    .btn {
+      padding: 12px 24px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      width: 100%;
+      padding: 16px;
+      font-size: 1.05rem;
+      color: #fff;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .btn-success {
+      width: 100%;
+      color: #fff;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    }
+
+    .btn-success:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 20px rgba(16, 185, 129, 0.4);
+    }
+
+    .btn-secondary {
+      flex: 1;
+      color: #fff;
+    }
+
+    .btn-download {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    }
+
+    .btn-download:hover {
+      box-shadow: 0 5px 15px rgba(16, 185, 129, 0.4);
+    }
+
+    .btn-copy {
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    }
+
+    .btn-copy:hover {
+      box-shadow: 0 5px 15px rgba(59, 130, 246, 0.4);
+    }
+
+    .btn-danger {
+      padding: 6px 12px;
+      font-size: 0.8rem;
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid rgba(239, 68, 68, 0.5);
+      color: #fca5a5;
+    }
+
+    .btn-danger:hover {
+      background: rgba(239, 68, 68, 0.4);
+    }
+
+    /* 模式切换 */
+    .mode-tabs {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .mode-tab {
+      flex: 1;
+      padding: 14px;
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      border-radius: 10px;
+      background: transparent;
+      color: #888;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    .mode-tab:hover {
+      border-color: rgba(102, 126, 234, 0.5);
+      color: #ccc;
+    }
+
+    .mode-tab.active {
+      border-color: #667eea;
+      background: rgba(102, 126, 234, 0.2);
+      color: #fff;
+    }
+
+    /* 上传区域 */
+    .upload-area {
+      border: 2px dashed rgba(255, 255, 255, 0.3);
+      border-radius: 12px;
+      padding: 30px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      background: rgba(0, 0, 0, 0.2);
+      margin-bottom: 15px;
+    }
+
+    .upload-area:hover {
+      border-color: #667eea;
+      background: rgba(102, 126, 234, 0.1);
+    }
+
+    .upload-area.has-image {
+      padding: 15px;
+    }
+
+    .upload-icon {
+      font-size: 3rem;
+      margin-bottom: 10px;
+    }
+
+    .upload-text {
+      font-size: 0.95rem;
+      color: #aaa;
+      margin-bottom: 5px;
+    }
+
+    .upload-hint {
+      font-size: 0.8rem;
+      color: #666;
+    }
+
+    /* 图片预览 */
+    .image-preview {
+      position: relative;
+      display: inline-block;
+      max-width: 100%;
+    }
+
+    .image-preview img {
+      max-width: 100%;
+      max-height: 300px;
+      border-radius: 10px;
+      display: block;
+    }
+
+    .remove-image {
+      position: absolute;
+      top: -10px;
+      right: -10px;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: #ef4444;
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+      transition: all 0.2s ease;
+    }
+
+    .remove-image:hover {
+      background: #dc2626;
+      transform: scale(1.1);
+    }
+
+    /* 加载动画 */
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* 错误消息 */
+    .error-message {
+      margin-top: 15px;
+      padding: 14px 18px;
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid rgba(239, 68, 68, 0.5);
+      border-radius: 10px;
+      color: #fca5a5;
+      font-size: 0.9rem;
+      display: none;
+    }
+
+    .error-message.show {
+      display: block;
+    }
+
+    /* 结果展示 */
+    .result-container {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+
+    .result-image {
+      max-width: 100%;
+      max-height: 500px;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 25px;
+    }
+
+    /* 历史记录 */
+    .history-section {
+      margin-top: 20px;
+    }
+
+    .history-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    .history-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 15px;
+      max-height: 400px;
+      overflow-y: auto;
+      padding-right: 10px;
+    }
+
+    .history-grid::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .history-grid::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+    }
+
+    .history-grid::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 3px;
+    }
+
+    .history-item {
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 10px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      border: 2px solid transparent;
+    }
+
+    .history-item:hover {
+      border-color: #667eea;
+      transform: translateY(-3px);
+    }
+
+    .history-item img {
+      width: 100%;
+      height: 120px;
+      object-fit: cover;
+    }
+
+    .history-item-info {
+      padding: 10px 12px;
+    }
+
+    .history-item-prompt {
+      font-size: 0.8rem;
+      color: #ccc;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 4px;
+    }
+
+    .history-item-time {
+      font-size: 0.7rem;
+      color: #888;
+    }
+
+    .history-empty {
+      text-align: center;
+      color: #666;
+      font-size: 0.9rem;
+      padding: 40px;
+      grid-column: 1 / -1;
+    }
+
+    /* 页脚 */
+    .footer {
+      text-align: center;
+      padding: 40px 0;
+      color: #666;
+      font-size: 0.9rem;
+    }
+
+    .footer a {
+      color: #667eea;
+      text-decoration: none;
+    }
+
+    .footer a:hover {
+      text-decoration: underline;
+    }
+
+    /* 隐藏类 */
+    .hidden {
+      display: none !important;
+    }
+
+    /* 响应式 */
+    @media (max-width: 768px) {
+      .header h1 {
+        font-size: 1.8rem;
+      }
+
+      .mode-tabs {
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .mode-tab {
+        padding: 12px;
+      }
+
+      .action-buttons {
+        flex-direction: column;
+      }
+
+      .btn-secondary {
+        width: 100%;
+      }
+
+      .history-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- 头部 -->
+    <header class="header">
+      <h1>🎨 GPT-Image-2 图片生成器</h1>
+      <p>基于 new-api 中转站调用 gpt-image-2 模型生成图片</p>
+    </header>
+
+    <!-- 主布局 -->
+    <div class="main-layout">
+      <!-- 左侧面板 -->
+      <div class="left-panel">
+        <!-- API 配置 -->
+        <div class="card">
+          <h2 class="card-title">⚙️ API 配置</h2>
+
+          <div class="form-group">
+            <label for="apiUrl">API 端点</label>
+            <input
+              type="text"
+              id="apiUrl"
+              placeholder="https://your-api.com"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="apiKey">API 密钥</label>
+            <input
+              type="password"
+              id="apiKey"
+              placeholder="sk-..."
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="model">模型名称</label>
+            <input
+              type="text"
+              id="model"
+              placeholder="gpt-image-2"
+            />
+          </div>
+
+          <button class="btn btn-success" id="saveConfigBtn">
+            💾 保存配置
+          </button>
+        </div>
+
+        <!-- 创建图片 -->
+        <div class="card">
+          <h2 class="card-title">✨ 创建图片</h2>
+
+          <!-- 模式切换 -->
+          <div class="mode-tabs">
+            <button class="mode-tab active" id="tabText">
+              📝 纯文字生图
+            </button>
+            <button class="mode-tab" id="tabImage">
+              🖼️ 图+文字生图
+            </button>
+          </div>
+
+          <!-- 图片上传 -->
+          <div class="form-group hidden" id="uploadGroup">
+            <label>参考图片</label>
+            <div class="upload-area" id="uploadArea">
+              <div id="uploadPlaceholder">
+                <div class="upload-icon">📤</div>
+                <div class="upload-text">点击或拖拽上传图片</div>
+                <div class="upload-hint">支持 JPG, PNG, WebP 格式（最大 10MB）</div>
+              </div>
+              <div class="image-preview hidden" id="imagePreview">
+                <img id="previewImg" alt="预览图片" />
+                <button class="remove-image" id="removeImageBtn">×</button>
+              </div>
+            </div>
+            <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp" class="hidden" />
+          </div>
+
+          <!-- 提示词 -->
+          <div class="form-group">
+            <label for="prompt">提示词</label>
+            <textarea
+              id="prompt"
+              placeholder="描述你想要生成的图片..."
+            ></textarea>
+          </div>
+
+          <!-- 图片尺寸 -->
+          <div class="form-group">
+            <label for="size">图片尺寸</label>
+            <select id="size">
+              <option value="1024x1024">1024x1024（正方形）</option>
+              <option value="1024x1792">1024x1792（竖版）</option>
+              <option value="1792x1024">1792x1024（横版）</option>
+            </select>
+          </div>
+
+          <!-- 生成按钮 -->
+          <button class="btn btn-primary" id="generateBtn">
+            🚀 生成图片
+          </button>
+
+          <!-- 错误消息 -->
+          <div class="error-message" id="errorMessage"></div>
+        </div>
+      </div>
+
+      <!-- 右侧面板 -->
+      <div class="right-panel">
+        <!-- 结果展示 -->
+        <div class="card hidden" id="resultSection">
+          <h2 class="card-title">🖼️ 生成结果</h2>
+
+          <div class="result-container">
+            <img class="result-image" id="resultImage" alt="生成的图片" />
+          </div>
+
+          <div class="action-buttons">
+            <button class="btn btn-secondary btn-download" id="downloadBtn">
+              💾 下载图片
+            </button>
+            <button class="btn btn-secondary btn-copy" id="copyBtn">
+              📋 复制提示词
+            </button>
+          </div>
+        </div>
+
+        <!-- 历史记录 -->
+        <div class="card history-section">
+          <div class="history-header">
+            <h2 class="card-title" style="margin-bottom: 0;">📚 历史记录</h2>
+            <button class="btn btn-danger" id="clearHistoryBtn">清空历史</button>
+          </div>
+
+          <div class="history-grid" id="historyGrid">
+            <div class="history-empty">暂无历史记录</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 页脚 -->
+    <footer class="footer">
+      <p>Powered by <a href="https://github.com/QuantumNous/new-api" target="_blank">new-api</a> + gpt-image-2</p>
+    </footer>
+  </div>
+
+  <script>
+    // DOM Elements
+    const apiUrlInput = document.getElementById('apiUrl');
+    const apiKeyInput = document.getElementById('apiKey');
+    const modelInput = document.getElementById('model');
+    const promptInput = document.getElementById('prompt');
+    const sizeSelect = document.getElementById('size');
+    const generateBtn = document.getElementById('generateBtn');
+    const errorMessage = document.getElementById('errorMessage');
+    const resultSection = document.getElementById('resultSection');
+    const resultImage = document.getElementById('resultImage');
+    const uploadGroup = document.getElementById('uploadGroup');
+    const uploadArea = document.getElementById('uploadArea');
+    const fileInput = document.getElementById('fileInput');
+    const previewImg = document.getElementById('previewImg');
+    const imagePreview = document.getElementById('imagePreview');
+    const uploadPlaceholder = document.getElementById('uploadPlaceholder');
+    const tabText = document.getElementById('tabText');
+    const tabImage = document.getElementById('tabImage');
+    const saveConfigBtn = document.getElementById('saveConfigBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const copyBtn = document.getElementById('copyBtn');
+    const historyGrid = document.getElementById('historyGrid');
+    const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+    const removeImageBtn = document.getElementById('removeImageBtn');
+
+    let currentImageUrl = null;
+    let currentMode = 'text';
+    let uploadedImageData = null;
+    let history = [];
+
+    // 初始化
+    document.addEventListener('DOMContentLoaded', () => {
+      bindEventListeners();
+      loadConfig();
+      loadHistory();
+      setupDragAndDrop();
+    });
+
+    // 绑定事件
+    function bindEventListeners() {
+      saveConfigBtn.addEventListener('click', saveConfigAndCollapse);
+      tabText.addEventListener('click', () => switchMode('text'));
+      tabImage.addEventListener('click', () => switchMode('image'));
+      uploadArea.addEventListener('click', () => fileInput.click());
+      fileInput.addEventListener('change', handleImageUpload);
+      removeImageBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        removeImage();
+      });
+      generateBtn.addEventListener('click', generateImage);
+      downloadBtn.addEventListener('click', downloadImage);
+      copyBtn.addEventListener('click', copyPrompt);
+      clearHistoryBtn.addEventListener('click', clearHistory);
+
+      promptInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          generateImage();
+        }
+      });
+    }
+
+    // 加载配置
+    function loadConfig() {
+      apiUrlInput.value = localStorage.getItem('apiUrl') || '';
+      apiKeyInput.value = localStorage.getItem('apiKey') || '';
+      modelInput.value = localStorage.getItem('model') || 'gpt-image-2';
+    }
+
+    // 保存配置
+    function saveConfig() {
+      localStorage.setItem('apiUrl', apiUrlInput.value);
+      localStorage.setItem('apiKey', apiKeyInput.value);
+      localStorage.setItem('model', modelInput.value);
+    }
+
+    // 保存配置并折叠
+    function saveConfigAndCollapse() {
+      saveConfig();
+      const originalText = saveConfigBtn.textContent;
+      saveConfigBtn.textContent = '✓ 已保存';
+      setTimeout(() => {
+        saveConfigBtn.textContent = originalText;
+      }, 1500);
+    }
+
+    // 切换模式
+    function switchMode(mode) {
+      currentMode = mode;
+      if (mode === 'text') {
+        tabText.classList.add('active');
+        tabImage.classList.remove('active');
+        uploadGroup.classList.add('hidden');
+        promptInput.placeholder = '描述你想要生成的图片...';
+      } else {
+        tabText.classList.remove('active');
+        tabImage.classList.add('active');
+        uploadGroup.classList.remove('hidden');
+        promptInput.placeholder = '描述如何基于参考图片生成新图片...';
+      }
+      if (mode === 'text') removeImage();
+    }
+
+    // 处理图片上传
+    function handleImageUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      if (!file.type.match(/^image\/(jpeg|png|webp)$/)) {
+        showError('只支持 JPG、PNG、WebP 格式的图片');
+        return;
+      }
+
+      if (file.size > 10 * 1024 * 1024) {
+        showError('图片大小不能超过 10MB');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        uploadedImageData = e.target.result;
+        previewImg.src = uploadedImageData;
+        imagePreview.classList.remove('hidden');
+        uploadPlaceholder.classList.add('hidden');
+        uploadArea.classList.add('has-image');
+        hideError();
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // 移除图片
+    function removeImage() {
+      uploadedImageData = null;
+      fileInput.value = '';
+      previewImg.src = '';
+      imagePreview.classList.add('hidden');
+      uploadPlaceholder.classList.remove('hidden');
+      uploadArea.classList.remove('has-image');
+    }
+
+    // 拖拽上传
+    function setupDragAndDrop() {
+      ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        uploadArea.addEventListener(eventName, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }, false);
+      });
+
+      uploadArea.addEventListener('dragenter', () => {
+        uploadArea.style.borderColor = '#667eea';
+        uploadArea.style.background = 'rgba(102, 126, 234, 0.1)';
+      }, false);
+
+      uploadArea.addEventListener('dragleave', () => {
+        uploadArea.style.borderColor = '';
+        uploadArea.style.background = '';
+      }, false);
+
+      uploadArea.addEventListener('drop', (e) => {
+        uploadArea.style.borderColor = '';
+        uploadArea.style.background = '';
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+          handleImageUpload({ target: { files: files } });
+        }
+      }, false);
+    }
+
+    // 显示错误
+    function showError(message) {
+      errorMessage.textContent = `❌ ${message}`;
+      errorMessage.classList.add('show');
+    }
+
+    // 隐藏错误
+    function hideError() {
+      errorMessage.classList.remove('show');
+    }
+
+    // 生成图片
+    async function generateImage() {
+      const prompt = promptInput.value.trim();
+
+      if (!prompt) {
+        showError('请输入提示词');
+        return;
+      }
+
+      if (!apiKeyInput.value) {
+        showError('请输入 API 密钥');
+        return;
+      }
+
+      if (currentMode === 'image' && !uploadedImageData) {
+        showError('请先上传参考图片');
+        return;
+      }
+
+      hideError();
+      generateBtn.disabled = true;
+      generateBtn.innerHTML = '<span class="spinner"></span> 生成中...';
+
+      try {
+        let apiUrl, headers, body;
+
+        if (currentMode === 'image' && uploadedImageData) {
+          apiUrl = `${apiUrlInput.value}/v1/images/edits`;
+          headers = { 'Authorization': `Bearer ${apiKeyInput.value}` };
+
+          const formData = new FormData();
+          formData.append('model', modelInput.value);
+          formData.append('prompt', prompt);
+          formData.append('n', '1');
+          formData.append('size', sizeSelect.value);
+
+          const base64Data = uploadedImageData.split(',')[1];
+          const mimeType = uploadedImageData.split(';')[0].split(':')[1];
+          const byteCharacters = atob(base64Data);
+          const byteArray = new Uint8Array(byteCharacters.length);
+          for (let i = 0; i < byteCharacters.length; i++) {
+            byteArray[i] = byteCharacters.charCodeAt(i);
+          }
+          const blob = new Blob([byteArray], { type: mimeType });
+          formData.append('image', blob, 'image.png');
+          body = formData;
+        } else {
+          apiUrl = `${apiUrlInput.value}/v1/images/generations`;
+          headers = {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKeyInput.value}`
+          };
+          body = JSON.stringify({
+            model: modelInput.value,
+            prompt: prompt,
+            n: 1,
+            size: sizeSelect.value
+          });
+        }
+
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: headers,
+          body: body
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error?.message || `API 错误: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data.data && data.data.length > 0) {
+          const imageData = data.data[0];
+          const imageUrl = imageData.url || `data:image/png;base64,${imageData.b64_json}`;
+          displayResult(imageUrl);
+        } else {
+          throw new Error('API 未返回图片数据');
+        }
+      } catch (error) {
+        showError(error.message || '生成图片失败');
+      } finally {
+        generateBtn.disabled = false;
+        generateBtn.innerHTML = '🚀 生成图片';
+      }
+    }
+
+    // 显示结果
+    function displayResult(imageUrl) {
+      currentImageUrl = imageUrl;
+      resultImage.src = imageUrl;
+      resultSection.classList.remove('hidden');
+      addToHistory(imageUrl, promptInput.value.trim());
+    }
+
+    // 下载图片
+    async function downloadImage() {
+      if (!currentImageUrl) return;
+
+      try {
+        if (currentImageUrl.startsWith('data:')) {
+          const link = document.createElement('a');
+          link.href = currentImageUrl;
+          link.download = `gpt-image-${Date.now()}.png`;
+          link.click();
+        } else {
+          const response = await fetch(currentImageUrl);
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `gpt-image-${Date.now()}.png`;
+          link.click();
+          window.URL.revokeObjectURL(url);
+        }
+      } catch (error) {
+        showError('下载图片失败');
+      }
+    }
+
+    // 复制提示词
+    function copyPrompt() {
+      navigator.clipboard.writeText(promptInput.value).then(() => {
+        const originalText = copyBtn.textContent;
+        copyBtn.textContent = '✓ 已复制';
+        setTimeout(() => {
+          copyBtn.textContent = originalText;
+        }, 1500);
+      }).catch(() => {
+        showError('复制失败');
+      });
+    }
+
+    // 加载历史记录
+    function loadHistory() {
+      const saved = localStorage.getItem('gptImageHistory');
+      if (saved) {
+        history = JSON.parse(saved);
+        renderHistory();
+      }
+    }
+
+    // 保存历史记录
+    function saveHistory() {
+      try {
+        // 只保存URL，不保存base64数据，减少存储大小
+        const historyToSave = history.map(item => ({
+          url: item.url.startsWith('data:') ? '' : item.url,
+          prompt: item.prompt,
+          time: item.time
+        })).filter(item => item.url);
+
+        localStorage.setItem('gptImageHistory', JSON.stringify(historyToSave));
+      } catch (e) {
+        console.error('保存历史记录失败:', e);
+        // 如果还是失败，只保留最近5条
+        if (history.length > 5) {
+          history = history.slice(0, 5);
+          try {
+            const minimalHistory = history.map(item => ({
+              url: item.url.startsWith('data:') ? '' : item.url,
+              prompt: item.prompt.substring(0, 50),
+              time: item.time
+            })).filter(item => item.url);
+            localStorage.setItem('gptImageHistory', JSON.stringify(minimalHistory));
+          } catch (e2) {
+            console.error('无法保存历史记录:', e2);
+            history = [];
+          }
+        }
+      }
+    }
+
+    // 渲染历史记录
+    function renderHistory() {
+      if (history.length === 0) {
+        historyGrid.innerHTML = '<div class="history-empty">暂无历史记录</div>';
+        return;
+      }
+
+      historyGrid.innerHTML = history.map((item, index) => `
+        <div class="history-item" data-index="${index}">
+          <img src="${item.url}" alt="${item.prompt}" loading="lazy" />
+          <div class="history-item-info">
+            <div class="history-item-prompt">${escapeHtml(item.prompt)}</div>
+            <div class="history-item-time">${item.time}</div>
+          </div>
+        </div>
+      `).join('');
+
+      document.querySelectorAll('.history-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const index = parseInt(item.dataset.index);
+          displayResult(history[index].url);
+          promptInput.value = history[index].prompt;
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+      });
+    }
+
+    // 添加到历史记录
+    function addToHistory(url, prompt) {
+      const now = new Date();
+      const timeStr = `${now.getMonth() + 1}/${now.getDate()} ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+      // 跳过base64数据，只保存URL
+      if (url.startsWith('data:')) {
+        console.log('跳过base64图片历史记录');
+        return;
+      }
+
+      history = history.filter(item => item.url !== url);
+      history.unshift({ url, prompt, time: timeStr });
+
+      if (history.length > 20) {
+        history = history.slice(0, 20);
+      }
+
+      saveHistory();
+      renderHistory();
+    }
+
+    // 清空历史记录
+    function clearHistory() {
+      if (confirm('确定要清空所有历史记录吗？')) {
+        history = [];
+        saveHistory();
+        renderHistory();
+      }
+    }
+
+    // HTML转义
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+  </script>
+</body>
+</html>
