@@ -155,8 +155,9 @@
     }
 
     .btn-primary:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
+      opacity: 0.8;
+      cursor: wait;
+      background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
     }
 
     .btn-success {
@@ -513,7 +514,7 @@
             <input
               type="text"
               id="apiUrl"
-              placeholder="https://your-api.com"
+              placeholder="https://api.apimart.ai"
             />
           </div>
 
@@ -580,13 +581,33 @@
             ></textarea>
           </div>
 
-          <!-- 图片尺寸 -->
+          <!-- 图片比例 -->
           <div class="form-group">
-            <label for="size">图片尺寸</label>
+            <label for="size">图片比例</label>
             <select id="size">
-              <option value="1024x1024">1024x1024（正方形）</option>
-              <option value="1024x1792">1024x1792（竖版）</option>
-              <option value="1792x1024">1792x1024（横版）</option>
+              <option value="auto">自动选择</option>
+              <option value="1:1">1:1（正方形）</option>
+              <option value="16:9">16:9（横版）</option>
+              <option value="9:16">9:16（竖版）</option>
+              <option value="4:3">4:3（横版）</option>
+              <option value="3:4">3:4（竖版）</option>
+              <option value="3:2">3:2（横版）</option>
+              <option value="2:3">2:3（竖版）</option>
+              <option value="5:4">5:4（横版）</option>
+              <option value="4:5">4:5（竖版）</option>
+              <option value="2:1">2:1（超宽）</option>
+              <option value="1:2">1:2（超高）</option>
+              <option value="21:9">21:9（电影宽屏）</option>
+            </select>
+          </div>
+
+          <!-- 分辨率档位 -->
+          <div class="form-group">
+            <label for="resolution">输出分辨率</label>
+            <select id="resolution">
+              <option value="1k">1K（标准）</option>
+              <option value="2k">2K（高清）</option>
+              <option value="4k">4K（超清）</option>
             </select>
           </div>
 
@@ -647,6 +668,7 @@
     const modelInput = document.getElementById('model');
     const promptInput = document.getElementById('prompt');
     const sizeSelect = document.getElementById('size');
+    const resolutionSelect = document.getElementById('resolution');
     const generateBtn = document.getElementById('generateBtn');
     const errorMessage = document.getElementById('errorMessage');
     const resultSection = document.getElementById('resultSection');
@@ -705,7 +727,7 @@
 
     // 加载配置
     function loadConfig() {
-      apiUrlInput.value = localStorage.getItem('apiUrl') || '';
+      apiUrlInput.value = localStorage.getItem('apiUrl') || 'https://api.apimart.ai';
       apiKeyInput.value = localStorage.getItem('apiKey') || '';
       modelInput.value = localStorage.getItem('model') || 'gpt-image-2';
     }
@@ -842,49 +864,29 @@
 
       hideError();
       generateBtn.disabled = true;
-      generateBtn.innerHTML = '<span class="spinner"></span> 生成中...';
+      generateBtn.innerHTML = '<span class="spinner"></span> 提交中...';
 
       try {
-        let apiUrl, headers, body;
+        const payload = {
+          model: modelInput.value || 'gpt-image-2',
+          prompt: prompt,
+          n: 1,
+          size: sizeSelect.value,
+          resolution: resolutionSelect.value
+        };
 
+        // 图生图模式
         if (currentMode === 'image' && uploadedImageData) {
-          apiUrl = `${apiUrlInput.value}/v1/images/edits`;
-          headers = { 'Authorization': `Bearer ${apiKeyInput.value}` };
-
-          const formData = new FormData();
-          formData.append('model', modelInput.value);
-          formData.append('prompt', prompt);
-          formData.append('n', '1');
-          formData.append('size', sizeSelect.value);
-
-          const base64Data = uploadedImageData.split(',')[1];
-          const mimeType = uploadedImageData.split(';')[0].split(':')[1];
-          const byteCharacters = atob(base64Data);
-          const byteArray = new Uint8Array(byteCharacters.length);
-          for (let i = 0; i < byteCharacters.length; i++) {
-            byteArray[i] = byteCharacters.charCodeAt(i);
-          }
-          const blob = new Blob([byteArray], { type: mimeType });
-          formData.append('image', blob, 'image.png');
-          body = formData;
-        } else {
-          apiUrl = `${apiUrlInput.value}/v1/images/generations`;
-          headers = {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKeyInput.value}`
-          };
-          body = JSON.stringify({
-            model: modelInput.value,
-            prompt: prompt,
-            n: 1,
-            size: sizeSelect.value
-          });
+          payload.image_urls = [uploadedImageData];
         }
 
-        const response = await fetch(apiUrl, {
+        const response = await fetch(`${apiUrlInput.value}/v1/images/generations`, {
           method: 'POST',
-          headers: headers,
-          body: body
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKeyInput.value}`
+          },
+          body: JSON.stringify(payload)
         });
 
         if (!response.ok) {
@@ -894,19 +896,81 @@
 
         const data = await response.json();
 
-        if (data.data && data.data.length > 0) {
-          const imageData = data.data[0];
-          const imageUrl = imageData.url || `data:image/png;base64,${imageData.b64_json}`;
-          displayResult(imageUrl);
-        } else {
-          throw new Error('API 未返回图片数据');
+        if (data.code !== 200 || !data.data || !data.data[0]) {
+          throw new Error(data.error?.message || '提交任务失败');
         }
+
+        const taskId = data.data[0].task_id;
+        generateBtn.innerHTML = `<span class="spinner"></span> 生成中... (0%)`;
+
+        // 轮询任务状态
+        const imageUrl = await pollTaskStatus(taskId);
+        displayResult(imageUrl);
+
       } catch (error) {
         showError(error.message || '生成图片失败');
       } finally {
         generateBtn.disabled = false;
         generateBtn.innerHTML = '🚀 生成图片';
       }
+    }
+
+    // 轮询任务状态
+    async function pollTaskStatus(taskId) {
+      const maxAttempts = 60; // 最多轮询60次
+      const interval = 3000; // 每3秒查询一次
+
+      for (let i = 0; i < maxAttempts; i++) {
+        await new Promise(resolve => setTimeout(resolve, interval));
+
+        try {
+          const response = await fetch(`${apiUrlInput.value}/v1/tasks/${taskId}`, {
+            headers: {
+              'Authorization': `Bearer ${apiKeyInput.value}`
+            }
+          });
+
+          if (!response.ok) {
+            console.warn('查询任务状态失败，继续重试...');
+            continue;
+          }
+
+          const data = await response.json();
+
+          if (data.code !== 200 || !data.data) {
+            continue;
+          }
+
+          const task = data.data;
+          const progress = task.progress || 0;
+          generateBtn.innerHTML = `<span class="spinner"></span> 生成中... (${progress}%)`;
+
+          if (task.status === 'completed') {
+            // 获取图片URL
+            if (task.result && task.result.images && task.result.images[0]) {
+              const imageData = task.result.images[0];
+              if (imageData.url && imageData.url[0]) {
+                return imageData.url[0];
+              }
+            }
+            throw new Error('任务完成但未返回图片');
+          }
+
+          if (task.status === 'failed') {
+            throw new Error(task.error?.message || '图片生成失败');
+          }
+
+          // 继续轮询（submitted 或 processing 状态）
+
+        } catch (error) {
+          if (error.message.includes('生成失败')) {
+            throw error;
+          }
+          console.warn('查询出错，继续重试:', error.message);
+        }
+      }
+
+      throw new Error('任务超时，请稍后重试');
     }
 
     // 显示结果
